@@ -17,17 +17,23 @@ class ImageDehazing:
         image[image > 1] = 1
         return image
 
-    def __show(self, images, titles, size):
+    def __show(self, images, titles, size, gray=False):
         if self.verbose is True:
             plt.figure(figsize=size)
 
             plt.subplot(1, 2, 1)
-            plt.imshow(images[0])
+            if gray is True:
+                plt.imshow(images[0], cmap='gray')
+            else:
+                plt.imshow(images[0])
             plt.title(titles[0])
             plt.axis('off')
 
             plt.subplot(1, 2, 2)
-            plt.imshow(images[1])
+            if gray is True:
+                plt.imshow(images[1], cmap='gray')
+            else:
+                plt.imshow(images[1])
             plt.title(titles[1])
             plt.axis('off')
 
@@ -93,6 +99,21 @@ class ImageDehazing:
 
         return enhanced
 
+    def luminance_map(self, image):
+        image = img_as_float64(image)
+        luminance = np.mean(image, axis=2)
+        luminancemap = np.sqrt((1 / 3) * (np.square(image[:, :, 0] - luminance) + np.square(image[:, :, 1] - luminance) + np.square(image[:, :, 2] - luminance)))
+
+        if self.verbose is True:
+            self.__show(
+                images=[self.image, luminancemap],
+                titles=['Original Image', 'Luminanace Weight Map'],
+                size=(15, 15),
+                gray=True
+            )
+        
+        return luminancemap
+
     def dehaze(self, image, verbose=None):
         self.image = image
 
@@ -105,6 +126,7 @@ class ImageDehazing:
 
         wb = self.white_balance(hazed)
         en = self.enhance_contrast(hazed)
+        lm = self.luminance_map(hazed)
 
         self.image = None
 
