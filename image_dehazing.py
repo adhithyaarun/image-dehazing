@@ -5,7 +5,12 @@ import cv2 as cv
 # skimage imports
 from skimage.io import imread
 from skimage.util import img_as_ubyte, img_as_float64
+from skimage.color import rgb2gray
+from skimage.color import rgb2hsv
 
+#scipy
+from scipy.signal import convolve2d
+from scipy import sparse
 
 class ImageDehazing:
     def __init__(self, verbose=False):
@@ -113,6 +118,47 @@ class ImageDehazing:
             )
         
         return luminancemap
+    
+    def chromatic_map(self, image):
+        image = img_as_float64(image)
+        hsv = rgb2hsv(image)
+        saturation = hsv[:, :, 1]
+        max_saturation = 1.0
+        sigma = 0.3
+        chromaticmap = np.exp(-1 * (((saturation - max_saturation) ** 2) / (2 * (sigma ** 2))))
+
+        if self.verbose is True:
+            self.__show(
+             images=[self.image, chromaticmap],
+             titles=['Original Image', 'Chromatic Weight Map'],
+             size=(15, 15),
+             gray=True
+        )
+    
+        return chromaticmap
+
+    def saliency_map(self, image):
+        image = img_as_float64(image)
+        
+        if(image.shape[2] > 0):
+            image = rgb2gray(image)
+        else:
+            image = image
+        
+        gaussian = cv.GaussianBlur(image,(5,5),0) 
+        image_mean = np.mean(image)
+        
+        saliencymap = np.absolute(gaussian - image_mean)
+           
+        if self.verbose is True:
+            self.__show(
+                images=[self.image, saliencymap],
+                titles=['Original Image', 'Saliency Weight Map'],
+                size=(15, 15),
+                gray=True
+            )
+        
+        return saliencymap
 
     def dehaze(self, image, verbose=None):
         self.image = image
@@ -127,6 +173,8 @@ class ImageDehazing:
         wb = self.white_balance(hazed)
         en = self.enhance_contrast(hazed)
         lm = self.luminance_map(hazed)
+        cm = self.chromatic_map(hazed)
+        sm = self.saliency_map(hazed)
 
         self.image = None
 
