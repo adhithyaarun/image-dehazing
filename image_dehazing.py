@@ -160,6 +160,29 @@ class ImageDehazing:
         
         return saliencymap
 
+    def image_pyramid(self, image, pyramid_type='gaussian', levels=1):
+        '''Function to generate the Gaussian/Laplacian pyramid of an image'''
+        image = img_as_float64(image)
+        
+        current_layer = image
+        gaussian = [current_layer]
+        for i in range(levels):
+            current_layer = cv.pyrDown(current_layer)
+            gaussian.append(current_layer)
+            
+        if pyramid_type == 'gaussian':
+            return gaussian
+        elif pyramid_type == 'laplacian':
+            current_layer = gaussian[levels-1]
+            laplacian = [current_layer]
+            for i in range(levels - 1, 0, -1):
+                shape = (gaussian[i-1].shape[1], gaussian[i-1].shape[0])
+                expand_gaussian = cv.pyrUp(gaussian[i], dstsize=shape)
+                current_layer = cv.subtract(gaussian[i-1], expand_gaussian)
+                laplacian.append(current_layer)
+            laplacian.reverse()
+            return laplacian
+
     def dehaze(self, image, verbose=None):
         self.image = image
 
@@ -170,14 +193,58 @@ class ImageDehazing:
         else:
             self.verbose = False
 
-        wb = self.white_balance(hazed)
-        en = self.enhance_contrast(hazed)
-        lm = self.luminance_map(hazed)
-        cm = self.chromatic_map(hazed)
-        sm = self.saliency_map(hazed)
+        white_balanced = self.white_balance(image=img_as_float64(self.image))       # First Input Image
+        contrast_enhanced = self.enhance_contrast(image=img_as_float64(self.image)) # Second Input Image
+        
+        input_images = [
+            img_as_float64(white_balanced),
+            img_as_float64(contrast_enhanced)
+        ]
+        
+        weight_maps = [
+            {
+                'luminance': self.luminance_map(image=input_images[0]),
+                'chromatic': self.chromatic_map(image=input_images[0]),
+                'saliency': self.saliency_map(image=input_images[0])
+            },
+            {
+                'luminance': self.luminance_map(image=input_images[1]),
+                'chromatic': self.chromatic_map(image=input_images[1]),
+                'saliency': self.saliency_map(image=input_images[1])
+            }
+        ]
+        
+        weight_maps[0]['combined'] = (weight_maps[0]['luminance'] * weight_maps[0]['chromatic'] * weight_maps[0]['saliency'])
+        weight_maps[1]['combined'] = (weight_maps[1]['luminance'] * weight_maps[1]['chromatic'] * weight_maps[1]['saliency'])
+        
+        weight_maps[0]['normalized'] = weight_maps[0]['combined'] / (weight_maps[0]['combined'] + weight_maps[1]['combined'])
+        weight_maps[1]['normalized'] = weight_maps[1]['combined'] / (weight_maps[0]['combined'] + weight_maps[1]['combined'])
+        
+        gaussians = [
+            self.image_pyramid(image=weight_maps[0]['normalized'], pyramid_type='gaussian', levels=5),
+            self.image_pyramid(image=weight_maps[1]['normalized'], pyramid_type='gaussian', levels=5)
+        ]
+        for i in range(len(gaussians[0])):
+            self.__show(
+                images=[self.image, gaussians[0][i]],
+                titles=['Original Image', 'Gaussian Pyramid Level {}'.format(i)],
+                size=(15, 15),
+                gray=True
+            )
+
+        laplacians = [
+            self.image_pyramid(image=weight_maps[0]['normalized'], pyramid_type='laplacian', levels=5),
+            self.image_pyramid(image=weight_maps[1]['normalized'], pyramid_type='laplacian', levels=5)
+        ]
+        for i in range(len(laplacians[0])):
+            self.__show(
+                images=[self.image, laplacians[0][i]],
+                titles=['Original Image', 'Laplacian Pyramid Level {}'.format(i)],
+                size=(15, 15),
+                gray=True
+            )
 
         self.image = None
-
 
 hazed = imread('./dataset/haze.jpg')
 obj = ImageDehazing(verbose=True)
