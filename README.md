@@ -145,3 +145,7 @@ Below are the pre-requisites to be satisfied before the package can be used.
   plt.axis('off')
   plt.show()
   ```
+- To see results on analysis of the changes observed due to variation in height of the pyramid, run the [height_variance.py](height_variance.py) script as follows:
+  ```bash
+  python3.7 height_variance.py
+  ```

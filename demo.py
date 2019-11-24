@@ -2,7 +2,7 @@ from image_dehazing.single_image import ImageDehazing
 import matplotlib.pyplot as plt
 from skimage.io import imread
 
-# Read Images
+# Read images
 images = [
     imread('./dataset/image_1.jpg'),
     imread('./dataset/image_2.jpeg'),
@@ -14,7 +14,21 @@ images = [
     imread('./dataset/image_8.jpg'),
     imread('./dataset/image_9.jpg'),
     imread('./dataset/image_10.jpg'),
-    imread('./dataset/image_11.jpeg')
+    imread('./dataset/image_11.jpeg'),
+    imread('./dataset/image_12.jpeg'),
+    imread('./dataset/image_13.jpeg'),
+    imread('./dataset/image_14.jpeg'),
+    imread('./dataset/image_15.jpeg'),
+    imread('./dataset/image_16.jpeg'),
+    imread('./dataset/image_17.jpeg'),
+    imread('./dataset/image_18.jpeg'),
+    imread('./dataset/image_19.jpeg'),
+    imread('./dataset/image_20.jpeg'),
+    imread('./dataset/image_21.jpeg'),
+    imread('./dataset/image_22.jpeg'),
+    imread('./dataset/image_23.jpeg'),
+    imread('./dataset/image_24.jpeg'),
+    imread('./dataset/image_25.jpeg')
 ]
 
 for image in images:

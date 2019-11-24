@@ -13,14 +13,22 @@ class ImageDehazing:
         self.image = None
         self.verbose = verbose
 
-    def __clip(self, image):
+    def __clip(self, image=None):
         '''Function to clip images to range of [0.0, 1.0]'''
+        # Validate parameters
+        if image is None:
+            return None
+
         image[image < 0] = 0
         image[image > 1] = 1
         return image
 
-    def __show(self, images, titles, size, gray=False):
+    def __show(self, images=None, titles=None, size=None, gray=False):
         '''Function to display images'''
+        # Validate parameters
+        if images is None or titles is None or size is None:
+            return
+
         plt.figure(figsize=size)
 
         plt.subplot(1, 2, 1)
@@ -41,8 +49,12 @@ class ImageDehazing:
 
         plt.show()
 
-    def white_balance(self, image):
-        '''Function to perform white balancing operationon an image'''
+    def white_balance(self, image=None):
+        '''Function to perform white balancing operation on an image'''
+        # Validate parameters
+        if image is None:
+            return None
+        
         image = img_as_float64(image)
 
         # Extract colour channels
@@ -80,8 +92,12 @@ class ImageDehazing:
             )
         return white_balanced
 
-    def enhance_contrast(self, image):
+    def enhance_contrast(self, image=None):
         '''Function to enhance contrast in an image'''
+        # Validate parameters
+        if image is None:
+            return None
+
         image = img_as_float64(image)
 
         # Extract colour channels
@@ -115,8 +131,12 @@ class ImageDehazing:
 
         return enhanced
 
-    def luminance_map(self, image):
+    def luminance_map(self, image=None):
         '''Function to generate the Luminance Weight Map of an image'''
+        # Validate parameters
+        if image is None:
+            return None
+        
         image = img_as_float64(image)
 
         # Generate Luminance Map
@@ -133,8 +153,12 @@ class ImageDehazing:
             )
         return luminancemap
     
-    def chromatic_map(self, image):
+    def chromatic_map(self, image=None):
         '''Function to generate the Chromatic Weight Map of an image'''
+        # Validate parameters
+        if image is None:
+            return None
+        
         image = img_as_float64(image)
         
         # Convert to HSV colour space
@@ -159,8 +183,12 @@ class ImageDehazing:
     
         return chromaticmap
 
-    def saliency_map(self, image):
+    def saliency_map(self, image=None):
         '''Function to generate the Saliency Weight Map of an image'''
+        # Validate parameters
+        if image is None:
+            return None
+        
         image = img_as_float64(image)
         
         # Convert image to grayscale
@@ -189,8 +217,12 @@ class ImageDehazing:
         
         return saliencymap
     
-    def image_pyramid(self, image, pyramid_type='gaussian', levels=1):
+    def image_pyramid(self, image=None, pyramid_type='gaussian', levels=1):
         '''Function to generate the Gaussian/Laplacian pyramid of an image'''
+        # Validate parameters
+        if image is None:
+            return None
+        
         image = img_as_float64(image)
         
         # Generate Gaussian Pyramid
@@ -214,8 +246,12 @@ class ImageDehazing:
             laplacian.reverse()
             return laplacian
             
-    def fusion(self, inputs, weights, gaussians):
+    def fusion(self, inputs=None, weights=None, gaussians=None):
         '''Function to fuse the pyramids together'''
+        # Validate parameters
+        if inputs is None or weights is None or gaussians is None:
+            return None
+        
         fused_levels = []
 
         # Perform Fusion by combining the Laplacian and Gaussian pyramids
@@ -269,7 +305,12 @@ class ImageDehazing:
                 )
         return fused
 
-    def dehaze(self, image, verbose=None):
+    def dehaze(self, image=None, verbose=None, pyramid_height=12):
+        '''Driver function to dehaze the image'''
+        # Validate parameters
+        if image is None:
+            return None
+
         self.image = image
         
         if len(image.shape) > 2 and image.shape[2] == 4:
@@ -320,8 +361,8 @@ class ImageDehazing:
         
         # Generating Gaussian Image Pyramids
         gaussians = [
-            self.image_pyramid(image=weight_maps[0]['normalized'], pyramid_type='gaussian', levels=12),
-            self.image_pyramid(image=weight_maps[1]['normalized'], pyramid_type='gaussian', levels=12)
+            self.image_pyramid(image=weight_maps[0]['normalized'], pyramid_type='gaussian', levels=pyramid_height),
+            self.image_pyramid(image=weight_maps[1]['normalized'], pyramid_type='gaussian', levels=pyramid_height)
         ]
 
         # Fusion Step
