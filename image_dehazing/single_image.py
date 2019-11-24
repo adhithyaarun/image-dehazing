@@ -3,14 +3,9 @@ import matplotlib.pyplot as plt
 import cv2 as cv
 
 # skimage imports
-from skimage.io import imread
 from skimage.util import img_as_ubyte, img_as_float64
 from skimage.color import rgb2gray
 from skimage.color import rgb2hsv
-
-#scipy
-from scipy.signal import convolve2d
-from scipy import sparse
 
 class ImageDehazing:
     def __init__(self, verbose=False):
@@ -123,9 +118,12 @@ class ImageDehazing:
     def luminance_map(self, image):
         '''Function to generate the Luminance Weight Map of an image'''
         image = img_as_float64(image)
-        luminance = np.mean(image, axis=2)
-        luminancemap = np.sqrt((1 / 3) * (np.square(image[:, :, 0] - luminance) + np.square(image[:, :, 1] - luminance) + np.square(image[:, :, 2] - luminance)))
 
+        # Generate Luminance Map
+        luminance = np.mean(image, axis=2)
+        luminancemap = np.sqrt((1 / 3) * (np.square(image[:, :, 0] - luminance + np.square(image[:, :, 1] - luminance) + np.square(image[:, :, 2] - luminance))))
+
+        # Display result (if verbose)
         if self.verbose is True:
             self.__show(
                 images=[self.image, luminancemap],
@@ -138,12 +136,19 @@ class ImageDehazing:
     def chromatic_map(self, image):
         '''Function to generate the Chromatic Weight Map of an image'''
         image = img_as_float64(image)
+        
+        # Convert to HSV colour space
         hsv = rgb2hsv(image)
+
+        # Extract Saturation
         saturation = hsv[:, :, 1]
         max_saturation = 1.0
         sigma = 0.3
+        
+        # Generate Chromatic Map
         chromaticmap = np.exp(-1 * (((saturation - max_saturation) ** 2) / (2 * (sigma ** 2))))
 
+        # Display result (if verbose)
         if self.verbose is True:
             self.__show(
              images=[self.image, chromaticmap],
@@ -158,16 +163,22 @@ class ImageDehazing:
         '''Function to generate the Saliency Weight Map of an image'''
         image = img_as_float64(image)
         
-        if(image.shape[2] > 0):
+        # Convert image to grayscale
+        if(len(image.shape) > 2):
             image = rgb2gray(image)
         else:
             image = image
         
+        # Apply Gaussian Smoothing
         gaussian = cv.GaussianBlur(image,(5, 5),0) 
+        
+        # Apply Mean Smoothing
         image_mean = np.mean(image)
         
+        # Generate Saliency Map
         saliencymap = np.absolute(gaussian - image_mean)
-           
+
+        # Display result (if verbose)           
         if self.verbose is True:
             self.__show(
                 images=[self.image, saliencymap],
@@ -182,6 +193,7 @@ class ImageDehazing:
         '''Function to generate the Gaussian/Laplacian pyramid of an image'''
         image = img_as_float64(image)
         
+        # Generate Gaussian Pyramid
         current_layer = image
         gaussian = [current_layer]
         for i in range(levels):
@@ -190,6 +202,7 @@ class ImageDehazing:
             
         if pyramid_type == 'gaussian':
             return gaussian
+        # Generate Laplacian Pyramid
         elif pyramid_type == 'laplacian':
             current_layer = gaussian[levels-1]
             laplacian = [current_layer]
@@ -205,14 +218,17 @@ class ImageDehazing:
         '''Function to fuse the pyramids together'''
         fused_levels = []
 
+        # Perform Fusion by combining the Laplacian and Gaussian pyramids
         for i in range(len(gaussians[0])):
             if len(inputs[0].shape) > 2:
                 for j in range(inputs[0].shape[2]):
+                    # Generate Laplacian Pyramids
                     laplacians = [
                         self.image_pyramid(image=inputs[0][:, :, j], pyramid_type='laplacian', levels=len(gaussians[0])),
                         self.image_pyramid(image=inputs[1][:, :, j], pyramid_type='laplacian', levels=len(gaussians[0]))
                     ]
                     
+                    # Adjust rows to match
                     row_size = np.min(np.array([
                         laplacians[0][i].shape[0],
                         laplacians[1][i].shape[0],
@@ -220,6 +236,7 @@ class ImageDehazing:
                         gaussians[1][i].shape[0]
                     ]))
 
+                    # Adjust columns to match
                     col_size = np.min(np.array([
                         laplacians[0][i].shape[1],
                         laplacians[1][i].shape[1],
@@ -229,9 +246,11 @@ class ImageDehazing:
                     
                     if j == 0:
                         intermediate = np.ones(inputs[0][:row_size, :col_size].shape)
+                    # Fusion Step
                     intermediate[:, :, j] = (laplacians[0][i][:row_size, :col_size] * gaussians[0][i][:row_size, :col_size]) + (laplacians[1][i][:row_size, :col_size] * gaussians[1][i][:row_size, :col_size])
             fused_levels.append(intermediate)
         
+        # Reconstruct Image Pyramids
         for i in range(len(fused_levels)-2, -1, -1):
             level_1 = cv.pyrUp(fused_levels[i+1])
             level_2 = fused_levels[i]
@@ -239,13 +258,15 @@ class ImageDehazing:
             c = min(level_1.shape[1], level_2.shape[1])
             fused_levels[i] = level_1[:r, :c] + level_2[:r, :c]
 
+        # Clip fused image to [0.0, 1.0]
         fused = self.__clip(fused_levels[0])
-        self.__show(
-                images=[self.image, fused],
-                titles=['Original Image', 'Fusion'],
-                size=(15, 15),
-                gray=False
-            )
+        if self.verbose is True:
+            self.__show(
+                    images=[self.image, fused],
+                    titles=['Original Image', 'Fusion'],
+                    size=(15, 15),
+                    gray=False
+                )
         return fused
 
     def dehaze(self, image, verbose=None):
@@ -299,38 +320,21 @@ class ImageDehazing:
         
         # Generating Gaussian Image Pyramids
         gaussians = [
-            self.image_pyramid(image=weight_maps[0]['normalized'], pyramid_type='gaussian', levels=5),
-            self.image_pyramid(image=weight_maps[1]['normalized'], pyramid_type='gaussian', levels=5)
+            self.image_pyramid(image=weight_maps[0]['normalized'], pyramid_type='gaussian', levels=12),
+            self.image_pyramid(image=weight_maps[1]['normalized'], pyramid_type='gaussian', levels=12)
         ]
 
         # Fusion Step
         fused = self.fusion(input_images, weight_maps, gaussians)
  
-        self.image = None
-    
+        # Dehazing data
         dehazing = {
-            'image': self.image,
+            'hazed': self.image,
             'inputs': input_images,
             'maps': weight_maps,
             'dehazed': fused
         }
+        
+        self.image = None   # Reset image
 
         return dehazing
-
-images = [
-    imread('./dataset/haze.jpg'),
-    imread('./dataset/hazed.jpg'),
-    imread('./dataset/hazed1.jpg'),
-    imread('./dataset/hazed2.jpg'),
-    imread('./dataset/hazed3.jpg'),
-    imread('./dataset/hazed4.jpg'),
-    imread('./dataset/hazed5.jpg'),
-    imread('./dataset/hazed6.jpg'),
-    imread('./dataset/eg1.jpeg'),
-    imread('./dataset/eg2.jpeg'),
-    imread('./dataset/eg3.png')
-]
-
-for image in images:
-    obj = ImageDehazing(verbose=False)
-    dehazed = obj.dehaze(image)
