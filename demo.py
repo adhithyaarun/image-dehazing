@@ -2,6 +2,7 @@ from image_dehazing.single_image import ImageDehazing
 import matplotlib.pyplot as plt
 from skimage.io import imread
 
+# Read Images
 images = [
     imread('./dataset/image_1.jpg'),
     imread('./dataset/image_2.jpeg'),
@@ -17,10 +18,14 @@ images = [
 ]
 
 for image in images:
+    # Create instance of ImageDehazing class
     dehazer = ImageDehazing(verbose=False)
-    dehazed_data = dehazer.dehaze(image)
+    
+    # Initiate dehazing process by call to dehaze method
+    dehazed_data = dehazer.dehaze(image, pyramid_height=12)
     plt.figure()
 
+    # Display results
     plt.subplot(1, 2, 1)
     plt.imshow(dehazed_data['hazed'])
     plt.title('Hazy Image')
